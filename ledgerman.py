@@ -4,7 +4,7 @@ from models import Player, Game, GameEvent, sql_obj_to_json, init_db
 import falcon
 import hashlib
 import sqlobject
-
+import json
 
 def gen_api_token():
     h = hashlib.new('md5')

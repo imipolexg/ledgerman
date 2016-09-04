@@ -69,7 +69,7 @@ def sql_obj_to_json(typeString, sqlObj):
     return json.dumps(result, default=lambda x: str(x))
 
 
-def init_db(db='agoratest.db'):
+def init_db(db='ledgerman.db'):
     dbPath = os.path.abspath(db)
     # if db file exists we assume it's been migrated
     dbExists = os.path.exists(dbPath)
