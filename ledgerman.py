@@ -5,8 +5,8 @@ import hashlib
 import json
 import re
 import sqlobject
+import md5
 import __builtin__
-
 
 class APITokenMiddleware(object):
     """Middleware to verify that a valid API token is present on the request."""
@@ -16,9 +16,7 @@ class APITokenMiddleware(object):
 
     @staticmethod
     def gen_api_token():
-        h = hashlib.new('md5')
-        h.update('In real life we would generate random api tokens for clients and store them in a table')
-        return h.hexdigest()
+        return md5.md5('In real life we would generate random api tokens for clients and store them in a table').hexdigest()
 
     def process_request(self, req, resp):
         token = req.get_header('X-API-Token')
@@ -68,19 +66,21 @@ achievements = AchievementResource()
 achievementsCollection = AchievementCollection()
 achievementTypes = AchievementTypeResource()
 achievementTypesCollection = AchievementTypeCollection()
+achievementsForPlayer = AchievementsForPlayerResource()
+achievementsForGame = AchievementsForGameResource()
 
 # Routes
 api.add_route('/players', playersCollection)
 api.add_route('/players/{playerId}', players)
 api.add_route('/players/{playerId}/games', gamesForPlayer)
 api.add_route('/players/{playerId}/events', eventsForPlayer)
-#api.add_route('/players/{playerId}/achievements', achievementsForPlayer)
+api.add_route('/players/{playerId}/achievements', achievementsForPlayer)
 
 api.add_route('/games', gamesCollection)
 api.add_route('/games/{gameId}', games)
 api.add_route('/games/{gameId}/players', playersForGame)
 api.add_route('/games/{gameId}/events', eventsForGame)
-#api.add_route('/games/{gameId}/achievements', achievementsForGame)
+api.add_route('/games/{gameId}/achievements', achievementsForGame)
 
 api.add_route('/events', eventsCollection)
 api.add_route('/events/{eventId}', events)

@@ -3,6 +3,7 @@ from models import Achievement, AchievementType, Player, Game, GameEvent, dump_j
 import json
 import falcon
 import formencode
+import md5
 
 class Resource(object):
     """Base clase for handling resource objects. 
@@ -90,6 +91,9 @@ class PlayerResource(Resource):
 
     def on_patch(self, req, resp, playerId):
         player = self.update_one(req, resp, playerId)
+        if player.avatarUrl is None and player.email is not None:
+            player.avatarUrl = gen_gravatar_url(player.email)
+
         resp.body = dump_json(player, self.typeString)
 
     def on_delete(self, req, resp, playerId):
@@ -106,6 +110,9 @@ class PlayerCollection(Resource):
 
     def on_post(self, req, resp):
         newPlayer = self.create_one(req, resp)
+        if newPlayer.avatarUrl is None and newPlayer.email is not None:
+            newPlayer.avatarUrl = gen_gravatar_url(newPlayer.email)
+
         resp.body = dump_json(newPlayer, self.typeString)
 
 
@@ -153,14 +160,7 @@ class GamesForPlayerResource(OneToManyResource):
         super(GamesForPlayerResource, self).__init__('game', Player)
 
     def on_get(self, req, resp, playerId):
-        player = None
-        try:
-            player = Player.get(playerId)
-        except SQLObjectNotFound:
-            raise falcon.HTTPNotFound()
-
-        resp.body = dump_json(player.games, self.typeString)
-
+        self.get_many_for_one(req, resp, playerId, 'games')
 
 class GameEventResource(Resource):
 
@@ -238,7 +238,6 @@ class AchievementTypeResource(Resource):
 
     def on_patch(self, req, resp, achievementTypeId):
         achievementType = self.update_one(req, resp, playerId)
-
         resp.body = dump_json(achievementType, self.typeString)
 
     def on_delete(self, req, resp, achievementTypeId):
@@ -286,3 +285,25 @@ class AchievementCollection(Resource):
     def on_post(self, req, resp):
         newAchievement = self.create_one(req, resp)
         resp.body = dump_json(newAchievement, self.typeString)
+
+class AchievementsForPlayerResource(OneToManyResource):
+    
+    def __init__(self):
+        super(AchievementsForPlayerResource, self).__init__('achievement', Player)
+
+    def on_get(self, req, resp, playerId):
+        self.get_many_for_one(req, resp, playerId, 'achievements')
+
+
+class AchievementsForGameResource(OneToManyResource):
+    
+    def __init__(self):
+        super(AchievementsForGameResource, self).__init__('achievement', Game)
+
+    def on_get(self, req, resp, playerId):
+        self.get_many_for_one(req, resp, gameId, 'achievements')
+
+
+def gen_gravatar_url(email):
+    email = email.strip().lower()
+    return 'https://www.gravatar.com/avatar/' + md5.md5(email).hexdigest() 
