@@ -157,11 +157,12 @@ class GameEvent(LedgermanModel):
 
 class AchievementType(LedgermanModel):
     name = UnicodeCol()
+    description = UnicodeCol()
 
 
 class Achievement(LedgermanModel):
     achievementType = ForeignKey('AchievementType')
-    # The game in which the achievement was ... achieved
+    # The game in which the achievement was achieved
     game = ForeignKey('Game')
     player = ForeignKey('Player')
     timestamp = DateTimeCol()

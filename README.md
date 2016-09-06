@@ -8,14 +8,15 @@ Ledgerman depends on a few packages easily available via `pip`
 
 * [`falcon`](https://github.com/falconry/falcon) - The Falcon web microframework
 * [`sqlobject`](http://sqlobject.org/) - An ORM for SQL databases
+* [`faker`](https://github.com/joke2k/faker) - Generating sample data for testing
 
 You'll also need a WSGI webserver. I've been using [Gunicorn](http://gunicorn.org/).
 
 So just run:
 
-	pip install falcon sqlobject gunicorn
+	pip install falcon sqlobject faker gunicorn
 
-And you're good to go.
+And you should be set.
 
 ## Running
 
@@ -51,6 +52,16 @@ Which is simply the hexadecimal representatino of the md5 hash of
 So set the header like this:
 
 	X-API-Token: 71645d46f5d7a03a974dcca8db8e0066	
+
+### Timestamps
+
+Timestamp properties, like `timestamp`, `started-at` and `ended-at` use the ISO format as specified by `strptime(3)` and documented [here](https://docs.python.org/2/library/datetime.html). Specifically, they should be either:
+
+    YYYY-MM-DDTHH:MM:SS.mmmmmm 
+    
+Or, if microsecond is 0
+
+    YYYY-MM-DDTHH:MM:SS
 
 ### Players endpoint
 
@@ -234,4 +245,60 @@ the game to the `/players/{id}/games` relationships.
 
 ### Achievements
 
-TODO
+Achievements are an open ended object that relate to user-defined types. First
+create the types with the `/achievement-types` endpoint, then create
+achievements with the `achievements` endpoint.
+
+The idea here is that a game server or client would handle the logic of
+determining when an achievement occured.  What would be more interesting would
+be logic in the API that noticed when a certain event occured (e.g., 5 frags in
+5 seconds, or 10 game wins in a row) and then automatically added an
+achievement. I'm curious to see how achievements are implemented in real games.
+
+#### Achievement Types
+
+An achievement type is really just a name and a description:
+
+##### Object
+
+    POST /achievement-types
+
+    {
+        "type": "achievement-type",
+        "attributes": {
+            "name": "King of the Hill",
+            "description": "Won your first CTF game"
+        }
+    }
+
+Would produce:
+
+    {
+        "type": "achievement-type",
+        "id": 1,
+        "attributes": {
+            "name": "King of the Hill",
+            "description": "Won your first CTF game"
+        }
+    }
+
+#### Achievements 
+
+Achievements mark the time a certain achievement-type occured for a certain
+player, and, optionally, in a certain game.
+
+
+##### Object format
+
+    POST /achievements
+
+    {
+        "type": "achievement",
+        "attributes": {
+            "game-id": 1,
+            "player-id": 2,
+            "achievement-type-id": 1,
+            "timestamp": "2016-09-05 00:30:00"
+        }
+    }
+
