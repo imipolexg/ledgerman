@@ -149,8 +149,7 @@ class Game(LedgermanModel):
 
 class GameEvent(LedgermanModel):
     game = ForeignKey('Game')
-    eventType = EnumCol(enumValues=(
-        'joined', 'left', 'spawned', 'damaged', 'fragged'))
+    eventType = EnumCol(enumValues=('joined', 'left', 'spawned', 'damaged', 'fragged'))
     player = ForeignKey('Player')
     timestamp = DateTimeCol()
     to = ForeignKey('Player')
@@ -184,9 +183,10 @@ def dash_to_camel(dash):
     well.
     """
     words = dash.split('-')
-    camel = ''.join([words[0]] + [x.capitalize() for x in words[1:]])
-    if camel[-2:] == 'Id':
-        camel = camel[:-2] + 'ID'
+    if words[-1].lower() == 'id':
+        camel = ''.join([words[0]] + [x.capitalize() for x in words[1:-1]] + [words[-1].upper()])
+    else:
+        camel = ''.join([words[0]] + [x.capitalize() for x in words[1:]])
 
     return camel
 

@@ -2,7 +2,7 @@ from sqlobject import SQLObjectNotFound
 from models import Achievement, AchievementType, Player, Game, GameEvent, dump_json, dash_to_camel
 import json
 import falcon
-
+import formencode
 
 class Resource(object):
     """Base clase for handling resource objects. 
@@ -83,7 +83,7 @@ class OneToManyResource(object):
 class PlayerResource(Resource):
 
     def __init__(self):
-        super(PlayerResource, self).__init__(u'player', Player)
+        super(PlayerResource, self).__init__('player', Player)
 
     def on_get(self, req, resp, playerId):
         self.get_one(req, resp, playerId)
@@ -170,12 +170,7 @@ class GameEventResource(Resource):
     def on_get(self, req, resp, eventId):
         self.get_one(req, resp, eventId)
 
-    def on_update(self, req, resp, eventId):
-        resource = self.update_one(req, resp, playerId)
-        resp.body = dump_json(resource, self.typeString)
-
-    def on_delete(self, req, resp, eventId):
-        self.delete_one(req, resp, eventId)
+    # No PATCH or DELETE for events. 
 
 
 class GameEventCollection(Resource):
@@ -187,7 +182,23 @@ class GameEventCollection(Resource):
         self.list_all(req, resp)
 
     def on_post(self, req, resp):
-        newEvent = self.create_one(req, resp)
+        newEvent = None
+        try:
+            attrs = GameEvent.parse_json_payload(req.stream.read(), self.typeString)
+
+            try:
+                game = Game.get(attrs['gameID'])
+            except KeyError:
+                raise ValueError("Missing 'game-id' attribute")
+
+            if not game.active:
+                raise ValueError('Events cannot be created for an inactive game')
+
+            newEvent = GameEvent(**attrs)
+        except ValueError as ex:
+            raise falcon.HTTPBadRequest('Bad Request', ex.message)
+        except formencode.api.Invalid as ex:
+            raise falcon.HTTPBadRequest('Bad Request', str(ex))
 
         # Mark when a player joins a game. Everyone who ever joined the game is
         # part of the game's players, even if they leave.

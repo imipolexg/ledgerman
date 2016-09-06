@@ -36,11 +36,9 @@ class APITokenMiddleware(object):
 class ValidateIdsMiddleware(object):
     """Ensures that any id parameter is a valid integer"""
 
-    id_re = re.compile(r'Id\Z')
-
     def process_resource(self, req, resp, resource, params):
         for k in params:
-            if self.id_re.search(k) is None:
+            if k[-2:] != 'Id': 
                 continue
 
             try:
