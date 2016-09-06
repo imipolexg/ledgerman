@@ -1,143 +1,94 @@
-#!/usr/bin/env python3
-
-from models import Player, Game, GameEvent, sql_obj_to_json, init_db
+from restfuls import *
+from models import init_db
 import falcon
 import hashlib
-import sqlobject
 import json
+import re
+import sqlobject
+import __builtin__
 
-def gen_api_token():
-    h = hashlib.new('md5')
-    h.update(
-        'In real life we would generate random api tokens for clients and store them in a table')
-    return h.hexdigest()
-
-api_token = gen_api_token()
 
 class APITokenMiddleware(object):
-    """Middleware to verify that a valid API token is present on the request
-    """
+    """Middleware to verify that a valid API token is present on the request."""
+
+    def __init__(self):
+        self.apiToken = self.gen_api_token()
+
+    @staticmethod
+    def gen_api_token():
+        h = hashlib.new('md5')
+        h.update('In real life we would generate random api tokens for clients and store them in a table')
+        return h.hexdigest()
 
     def process_request(self, req, resp):
         token = req.get_header('X-API-Token')
 
-        if token is None or not self._check_token(token):
+        if token is None or not self.check_token(token):
             title = 'Bad API token'
-            description = 'Token ' + str(token )+ \
-                ' is invalid. Please provide a valid API token in the X-API-Token header'
+            description = 'X-API-Token header invalid or not present.'
 
             raise falcon.HTTPBadRequest(title, description)
 
-    def _check_token(self, token):
-        return token == api_token
+    def check_token(self, token):
+        return token == self.apiToken
 
 
-class Resource(object):
+class ValidateIdsMiddleware(object):
+    """Ensures that any id parameter is a valid integer"""
 
-    def __init__(self, typeString, sqlObj):
-        self.typeString = typeString
-        self.sqlObj = sqlObj
+    id_re = re.compile(r'Id\Z')
 
-    def _list_all(self, req, resp):
-        resp.status = falcon.HTTP_200
-        resp.body = sql_obj_to_json(
-            self.typeString, list(self.sqlObj.select()))
+    def process_resource(self, req, resp, resource, params):
+        for k in params:
+            if self.id_re.search(k) is None:
+                continue
 
-    def _get_one(self, req, resp, resourceId):
-        try:
-            resource = self.sqlObj.get(resourceId)
-            resp.status = falcon.HTTP_200
-            resp.body = sql_obj_to_json(self.typeString, resource)
-        except sqlobject.SQLObjectNotFound:
-            raise falcon.HTTPNotFound()
+            try:
+                params[k] = int(params[k])
+            except ValueError:
+                raise falcon.HTTPBadRequest('Bad Request', "Parameter '{0}' must be an integer.".format(k))
 
 
-class PlayerResource(Resource):
+if hasattr(__builtin__, 'ledgerman_testing') and __builtin__.ledgerman_testing:
+    init_db(':memory:')
+else:
+    init_db()
 
-    def __init__(self):
-        super(PlayerResource, self).__init__('player', Player)
+api = falcon.API(middleware=[APITokenMiddleware(), ValidateIdsMiddleware()])
 
-    def on_get(self, req, resp, playerId=None, gameId=None):
-        if playerId is None and gameId is None:
-            self._list_all(req, resp)
-        elif gameId is not None:
-            self._get_players_for_game(req, resp, gameId)
-        else:
-            self._get_one(req, resp, playerId)
-
-    def on_patch(self, req, resp, playerId=None):
-        if playerId is None:
-            raise falcon.HTTPBadRequest('Bad Request', 'No id provided')
-
-        player = None
-        try:
-            player = Player.get(playerId)
-        except SQLObjectNotFound:
-            raise falcon.HTTPNotFound()
-
-        patchObj = None
-        try:
-            patchObj = json.loads(req.stream.read())
-            if patchObj['id'] != playerId:
-                raise ValueError('ID mismatch') 
-
-            if patchObj['type'] != self.typeString:
-                raise ValueError('Type mismatch')
-
-            if not patchObj.has_key('attributes'):
-                raise ValueError('Missing attributes key')
-
-        except (ValueError, KeyError) as ex:
-            raise falcon.HTTPBadRequest('Invalid Request Object', ex.message) 
-
-        attrs = patchObj['attributes']
-
-
-    def _get_players_for_game(self, req, resp, gameId):
-        try:
-            game = Game.get(gameId)
-        except SQLObjectNotFound:
-            raise falcon.HTTPNotFound()
-
-        resp.status = falcon.HTTP_200
-        resp.body = sql_obj_to_json(self.typeString, game.players)
-
-class GameResource(Resource):
-
-    def __init__(self):
-        super(GameResource, self).__init__('game', Game)
-
-    def on_get(self, req, resp, playerId=None, gameId=None):
-        if playerId is None and gameId is None:
-            self._list_all(req, resp)
-        elif playerId is not None:
-            self._get_games_for_player(req, resp, playerId)
-        else:
-            self._get_one(req, resp, gameId)
-
-    def _get_games_for_player(self, req, resp, playerId):
-        try:
-            player = Player.get(playerId)
-        except SQLObjectNotFound:
-            raise falcon.HTTPNotFound()
-
-        resp.status = falcon.HTTP_200
-        resp.body = sql_obj_to_json(self.typeString, player.games)
-
-init_db()
-
-app = falcon.API(middleware=[APITokenMiddleware()])
-players = PlayerResource()
+events = GameEventResource()
+eventsCollection = GameEventCollection()
+eventsForGame = EventsForGameResource()
+eventsForPlayer = EventsForPlayerResource()
 games = GameResource()
+gamesCollection = GameCollection()
+gamesForPlayer = GamesForPlayerResource()
+players = PlayerResource()
+playersCollection = PlayerCollection()
+playersForGame = PlayersForGameResource()
+achievements = AchievementResource()
+achievementsCollection = AchievementCollection()
+achievementTypes = AchievementTypeResource()
+achievementTypesCollection = AchievementTypeCollection()
 
 # Routes
+api.add_route('/players', playersCollection)
+api.add_route('/players/{playerId}', players)
+api.add_route('/players/{playerId}/games', gamesForPlayer)
+api.add_route('/players/{playerId}/events', eventsForPlayer)
+#api.add_route('/players/{playerId}/achievements', achievementsForPlayer)
 
-app.add_route('/players', players)
-app.add_route('/players/{playerId}', players)
-app.add_route('/players/{playerId}/games', games)
-#app.add_route('/players/{playerId}/events', events)
+api.add_route('/games', gamesCollection)
+api.add_route('/games/{gameId}', games)
+api.add_route('/games/{gameId}/players', playersForGame)
+api.add_route('/games/{gameId}/events', eventsForGame)
+#api.add_route('/games/{gameId}/achievements', achievementsForGame)
 
-app.add_route('/games', games)
-app.add_route('/games/{gameId}', games)
-app.add_route('/games/{gameId}/players', players)
-# app.add_route('/games/{gameId}/events', events)
+api.add_route('/events', eventsCollection)
+api.add_route('/events/{eventId}', events)
+
+api.add_route('/achievement-types', achievementTypesCollection)
+api.add_route('/achievement-types/{typeId}', achievementTypes)
+
+api.add_route('/achievements', achievementsCollection)
+api.add_route('/achievements/{achievementId}', achievements)
