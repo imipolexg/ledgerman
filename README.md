@@ -36,6 +36,8 @@ to the ones returned by `GET` on a specific object, (with the exception that an
 `id` property on `POST` objects will be ignored, since the database will
 generate the object's id).
 
+A postman collection for some of this API's endpoints can be found [here](https://www.getpostman.com/collections/c9c9269d19f580cc19fa)
+
 ### API token
 
 The HTTP header `X-API-Token` must accompany each request to the ledgerman API
